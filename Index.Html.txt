@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SS7 — Signaling System No. 7</title>
+<style>
+  :root{
+    --bg: #0c0f0d;
+    --bg-panel: #121613;
+    --amber: #e8a33d;
+    --amber-dim: #8a6528;
+    --paper: #d8d3c4;
+    --paper-dim: #8a8578;
+    --wire: #2a332c;
+    --danger: #c2452f;
+    --mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --serif: 'Source Serif 4', Georgia, serif;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap');
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--paper);
+    font-family:var(--serif);
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--amber); color:#0c0f0d;}
+
+  .wire-bg{
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.35;
+    background-image:
+      linear-gradient(var(--wire) 1px, transparent 1px),
+      linear-gradient(90deg, var(--wire) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  header.masthead{
+    position:relative; z-index:1;
+    padding: 8vh 6vw 6vh;
+    border-bottom:1px solid var(--wire);
+  }
+  .signal-label{
+    font-family:var(--mono); font-size:0.72rem; letter-spacing:0.22em;
+    color:var(--amber); text-transform:uppercase; display:flex; align-items:center; gap:10px;
+    margin-bottom: 2rem;
+  }
+  .signal-label::before{
+    content:''; display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:var(--amber); box-shadow:0 0 8px var(--amber);
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+
+  h1.title{
+    font-family:var(--serif); font-weight:700;
+    font-size: clamp(2.6rem, 7vw, 5.2rem);
+    line-height:0.98; letter-spacing:-0.02em;
+    color:var(--paper);
+    max-width: 16ch;
+  }
+  h1.title em{
+    font-style:normal; color:var(--amber);
+  }
+  .subhead{
+    font-family:var(--mono); font-size:0.95rem; color:var(--paper-dim);
+    max-width:56ch; margin-top:1.6rem; line-height:1.7;
+  }
+  .subhead .warn{color:var(--danger);}
+
+  nav.toc{
+    display:flex; flex-wrap:wrap; gap: 0 2.2rem;
+    margin-top:3rem; font-family:var(--mono); font-size:0.78rem;
+  }
+  nav.toc a{
+    color:var(--paper-dim); text-decoration:none; letter-spacing:0.05em;
+    border-bottom:1px solid transparent; padding-bottom:2px;
+    transition:color 0.2s, border-color 0.2s;
+  }
+  nav.toc a:hover{color:var(--amber); border-color:var(--amber);}
+
+  main{position:relative; z-index:1;}
+  section{
+    padding: 7vh 6vw; max-width:1180px; margin:0 auto;
+    border-bottom:1px solid var(--wire);
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:0.72rem; letter-spacing:0.2em;
+    color:var(--amber-dim); text-transform:uppercase; margin-bottom:0.9rem;
+  }
+  h2{
+    font-family:var(--serif); font-weight:700; font-size:clamp(1.7rem,3.4vw,2.5rem);
+    color:var(--paper); margin-bottom:1.2rem; max-width:22ch;
+  }
+  p.lead{ font-size:1.08rem; color:var(--paper); max-width:68ch; margin-bottom:1rem;}
+  p.lead + p.lead{margin-top:0;}
+  .col-body p{color:#b9b3a2; max-width:68ch; margin-bottom:1rem; font-size:1rem;}
+
+  /* Network diagram - protocol stack */
+  .stack{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+    gap:1px; background:var(--wire); border:1px solid var(--wire); margin-top:2.5rem;
+  }
+  .stack .layer{
+    background:var(--bg-panel); padding:1.4rem 1.2rem; position:relative;
+  }
+  .stack .layer .n{
+    font-family:var(--mono); font-size:0.68rem; color:var(--amber-dim); letter-spacing:0.15em;
+  }
+  .stack .layer .name{
+    font-family:var(--mono); font-size:0.92rem; color:var(--paper); margin-top:0.5rem; font-weight:600;
+  }
+  .stack .layer .desc{
+    font-size:0.82rem; color:var(--paper-dim); margin-top:0.5rem; font-family:var(--mono); line-height:1.5;
+  }
+
+  /* Trust diagram */
+  .trust-diagram{
+    margin-top:2.5rem; display:flex; align-items:center; justify-content:space-between;
+    gap:1rem; flex-wrap:wrap; font-family:var(--mono); font-size:0.8rem;
+  }
+  .node{
+    border:1px solid var(--wire); background:var(--bg-panel); padding:1rem 1.3rem;
+    text-align:center; flex:1; min-width:140px; color:var(--paper);
+  }
+  .node .tag{color:var(--amber-dim); font-size:0.68rem; letter-spacing:0.1em; display:block; margin-bottom:0.4rem;}
+  .link-line{
+    flex:0 0 auto; width:40px; height:1px; background:var(--amber-dim);
+    position:relative; align-self:center;
+  }
+  .link-line::after{
+    content:'→'; position:absolute; right:-10px; top:-9px; color:var(--amber-dim); font-size:0.9rem;
+  }
+
+  /* Vulnerability cards */
+  .vuln-grid{
+    display:grid; grid-template-columns:1fr; gap:1px; background:var(--wire);
+    border:1px solid var(--wire); margin-top:2rem;
+  }
+  .vuln{
+    background:var(--bg-panel); padding:2rem 2.2rem; display:grid;
+    grid-template-columns: 90px 1fr; gap:1.8rem;
+  }
+  .vuln .code{
+    font-family:var(--mono); font-size:0.72rem; color:var(--amber);
+    letter-spacing:0.05em; padding-top:0.2rem;
+  }
+  .vuln h3{
+    font-family:var(--serif); font-size:1.35rem; color:var(--paper); margin-bottom:0.6rem; font-weight:600;
+  }
+  .vuln .abuses{
+    font-family:var(--mono); font-size:0.7rem; color:var(--amber-dim); margin-bottom:0.8rem;
+    text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .vuln p{color:#b9b3a2; font-size:0.96rem; max-width:64ch; margin-bottom:0.7rem;}
+  .vuln .impact{
+    margin-top:0.9rem; padding-top:0.9rem; border-top:1px dashed var(--wire);
+    font-size:0.86rem; color:var(--paper-dim); font-style:italic;
+  }
+  @media(max-width:640px){
+    .vuln{grid-template-columns:1fr; gap:0.6rem;}
+  }
+
+  /* Timeline for incidents */
+  .incidents{margin-top:2.5rem; position:relative;}
+  .incident{
+    display:grid; grid-template-columns:110px 1fr; gap:1.6rem;
+    padding:1.6rem 0; border-top:1px solid var(--wire);
+  }
+  .incident:last-child{border-bottom:1px solid var(--wire);}
+  .incident .year{
+    font-family:var(--mono); font-size:1.5rem; color:var(--amber); font-weight:600;
+  }
+  .incident h3{font-size:1.15rem; margin-bottom:0.4rem; color:var(--paper);}
+  .incident p{color:#b9b3a2; font-size:0.95rem; max-width:64ch;}
+  .incident .src{
+    font-family:var(--mono); font-size:0.7rem; color:var(--paper-dim); margin-top:0.5rem; display:block;
+  }
+  @media(max-width:640px){
+    .incident{grid-template-columns:1fr; gap:0.4rem;}
+  }
+
+  /* Defense grid */
+  .defense-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1px;
+    background:var(--wire); border:1px solid var(--wire); margin-top:2.5rem;
+  }
+  .defense{background:var(--bg-panel); padding:1.8rem;}
+  .defense .icon-line{
+    font-family:var(--mono); color:var(--amber); font-size:0.9rem; margin-bottom:0.8rem;
+  }
+  .defense h4{color:var(--paper); font-size:1.05rem; margin-bottom:0.5rem; font-family:var(--serif);}
+  .defense p{color:var(--paper-dim); font-size:0.88rem;}
+
+  /* Signal trace decorative element (signature) */
+  .trace-wrap{
+    margin-top:3rem; border:1px solid var(--wire); background:var(--bg-panel);
+    padding:1.5rem 1.5rem 0.5rem;
+  }
+  .trace-label{
+    font-family:var(--mono); font-size:0.7rem; color:var(--amber-dim); letter-spacing:0.15em;
+    text-transform:uppercase; margin-bottom:0.8rem; display:flex; justify-content:space-between;
+  }
+  svg.trace{width:100%; height:120px; display:block;}
+  .trace path{fill:none; stroke:var(--amber); stroke-width:1.5; opacity:0.85;}
+  .trace .grid-line{stroke:var(--wire); stroke-width:1;}
+
+  footer{
+    padding:5vh 6vw; font-family:var(--mono); font-size:0.75rem; color:var(--paper-dim);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;
+  }
+  footer a{color:var(--amber-dim);}
+
+  .glossary{
+    margin-top:2.5rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:1.5rem 2.5rem;
+  }
+  .glossary dt{
+    font-family:var(--mono); font-size:0.85rem; color:var(--amber); margin-bottom:0.3rem; font-weight:600;
+  }
+  .glossary dd{color:var(--paper-dim); font-size:0.88rem;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wire-bg"></div>
+
+<header class="masthead">
+  <div class="signal-label">MTP · SCCP · TCAP — active study notes</div>
+  <h1 class="title">Signaling System <em>No. 7</em></h1>
+  <p class="subhead">
+    The protocol suite that lets phone networks talk to each other — and, because it was built for a world of a few dozen trusted operators, quietly trusts anyone who can get onto it.
+    <br><br>
+    <span class="warn">This page stays conceptual.</span> No exploit code, no interception tooling, no live-network targeting — the goal is to understand attack classes well enough to reason about defense, not to run one.
+  </p>
+  <nav class="toc">
+    <a href="#what">What is SS7</a>
+    <a href="#trust">The trust model</a>
+    <a href="#vulns">Vulnerability classes</a>
+    <a href="#incidents">Real-world incidents</a>
+    <a href="#defense">Defenses</a>
+    <a href="#glossary">Glossary</a>
+  </nav>
+</header>
+
+<main>
+
+<section id="what">
+  <div class="eyebrow">01 · Foundations</div>
+  <h2>A network built to let strangers' switches trust each other</h2>
+  <p class="lead">SS7 is a family of protocols from the 1970s–80s that carries the "signaling" behind a phone call or text — everything except the voice or message itself: call setup, routing, number lookups, SMS delivery, roaming handoffs when you cross into another operator's network.</p>
+  <div class="col-body">
+    <p>It runs as a separate layer from the actual voice/data path. When you dial a number, your phone's radio talks to your carrier's local equipment, but the question "which switch is this number currently reachable on" gets answered by SS7 messages hopping between operators' core networks — often across borders, across companies that have never met.</p>
+    <p>The stack is layered, roughly like this:</p>
+  </div>
+
+  <div class="stack">
+    <div class="layer">
+      <div class="n">L1–L3</div>
+      <div class="name">MTP</div>
+      <div class="desc">Message Transfer Part. Physical + routing layer — gets a signaling message from switch A to switch B reliably.</div>
+    </div>
+    <div class="layer">
+      <div class="n">L4</div>
+      <div class="name">SCCP</div>
+      <div class="desc">Signaling Connection Control Part. Adds addressing so messages can find a specific application on a remote network, not just a switch.</div>
+    </div>
+    <div class="layer">
+      <div class="n">L4+</div>
+      <div class="name">TCAP</div>
+      <div class="desc">Transaction Capabilities. Carries the actual "conversations" — remote procedure calls like "where is this subscriber right now."</div>
+    </div>
+    <div class="layer">
+      <div class="n">App</div>
+      <div class="name">MAP / CAP</div>
+      <div class="desc">Mobile / CAMEL Application Part. The specific operations: location update, send SMS, forward call, check roaming status.</div>
+    </div>
+  </div>
+</section>
+
+<section id="trust">
+  <div class="eyebrow">02 · The core problem</div>
+  <h2>It authenticates the network, not the message</h2>
+  <p class="lead">SS7 was designed when "who's on this network" was a legal and contractual question, answered once, at the point of interconnection — not a per-message technical question.</p>
+  <div class="col-body">
+    <p>If your equipment could physically reach an SS7 signaling point — because your operator had an interconnect agreement, or you leased capacity from someone who did — the network mostly assumed you were legitimate. There's no per-message cryptographic proof that a "where is this subscriber" query really originated from a roaming partner's home location register rather than from anyone else holding a global title on the network.</p>
+    <p>That assumption held reasonably well while SS7 access meant being a licensed telecom operator with physical infrastructure. It has held much less well since SS7 connectivity became available more cheaply — through smaller resellers, compromised operator equipment, or leased "global title" access — while the protocol itself never gained a message-level trust mechanism to match.</p>
+  </div>
+  <div class="trust-diagram">
+    <div class="node"><span class="tag">Query origin</span>Any signaling point with network access</div>
+    <div class="link-line"></div>
+    <div class="node"><span class="tag">Authentication</span>None, at the message level</div>
+    <div class="link-line"></div>
+    <div class="node"><span class="tag">Assumption</span>"On the network" ⇒ trusted</div>
+  </div>
+</section>
+
+<section id="vulns">
+  <div class="eyebrow">03 · Attack classes</div>
+  <h2>What that trust gap makes possible</h2>
+  <p class="lead">These are described at the level of "what capability is abused and why it works" — not as operational instructions. Each relies on a legitimate SS7 operation being invoked by a party who shouldn't be able to invoke it for a given subscriber.</p>
+
+  <div class="vuln-grid">
+    <div class="vuln">
+      <div class="code">01</div>
+      <div>
+        <div class="abuses">Abuses · Any-Time-Interrogation / Provide-Subscriber-Info</div>
+        <h3>Location tracking</h3>
+        <p>Roaming requires operators to be able to ask "which cell tower area is this subscriber currently near" so calls can be routed. That query, meant for legitimate roaming handoffs, can be sent by anyone with suitable network access, for any subscriber whose number they know.</p>
+        <div class="impact">Impact: a subscriber's approximate location can be resolved without their knowledge, without malware on their device, and without any action on their part.</div>
+      </div>
+    </div>
+
+    <div class="vuln">
+      <div class="code">02</div>
+      <div>
+        <div class="abuses">Abuses · Update-Location</div>
+        <h3>Call and SMS interception</h3>
+        <p>When you genuinely change networks — say, landing in another country — your home network is told "route this subscriber's traffic here now." The same message type, sent illegitimately, can tell the network to redirect a target's calls or texts to attacker-controlled equipment instead of their real phone.</p>
+        <div class="impact">Impact: incoming SMS — including one-time codes used for account recovery or two-factor authentication — can be redirected instead of reaching the real device.</div>
+      </div>
+    </div>
+
+    <div class="vuln">
+      <div class="code">03</div>
+      <div>
+        <div class="abuses">Abuses · Call-forwarding primitives</div>
+        <h3>Fraudulent call forwarding</h3>
+        <p>Similar in spirit to interception: signaling messages that are meant to let a subscriber configure call forwarding through their own carrier can, without proper origin checks, be used to silently forward a target's calls to a third-party number.</p>
+        <div class="impact">Impact: calls meant for the victim — including voice-based verification calls — can be diverted without their phone ever ringing.</div>
+      </div>
+    </div>
+
+    <div class="vuln">
+      <div class="code">04</div>
+      <div>
+        <div class="abuses">Abuses · Insufficient message-origin validation, broadly</div>
+        <h3>Denial of service / billing fraud</h3>
+        <p>Beyond interception, the same lack of origin verification lets malformed or excessive signaling traffic disrupt a subscriber's service (deregistering them, dropping their session) or manipulate billing systems into logging calls that never happened.</p>
+        <div class="impact">Impact: service disruption or financial fraud, distinct from surveillance-oriented attacks but rooted in the same trust gap.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trace-wrap">
+    <div class="trace-label"><span>SIGNALING TRACE — legitimate roaming update vs. spoofed origin</span><span>MAP / TCAP</span></div>
+    <svg class="trace" viewBox="0 0 800 120" preserveAspectRatio="none">
+      <line class="grid-line" x1="0" y1="30" x2="800" y2="30"/>
+      <line class="grid-line" x1="0" y1="90" x2="800" y2="90"/>
+      <path d="M0,30 L60,30 L80,10 L100,30 L400,30 L420,10 L440,30 L800,30" />
+      <path d="M0,90 L200,90 L220,60 L240,90 L260,120 L280,90 L500,90 L520,50 L540,90 L800,90" stroke="#c2452f" opacity="0.75"/>
+    </svg>
+  </div>
+</section>
+
+<section id="incidents">
+  <div class="eyebrow">04 · Documented cases</div>
+  <h2>This has moved from research to practice</h2>
+  <p class="lead">SS7 weaknesses were demonstrated by researchers well before they were confirmed in the field. A few notable, publicly reported milestones:</p>
+
+  <div class="incidents">
+    <div class="incident">
+      <div class="year">2008</div>
+      <div>
+        <h3>Academic and CCC disclosures</h3>
+        <p>Security researchers, including presentations at the Chaos Communication Congress, began publicly demonstrating SS7-based location tracking and interception techniques, pushing the issue from telecom-insider knowledge into public security research.</p>
+      </div>
+    </div>
+    <div class="incident">
+      <div class="year">2014</div>
+      <div>
+        <h3>Ukraine network incidents reported</h3>
+        <p>Researchers and press reported SS7-based interception and location-tracking activity affecting subscribers in Ukraine, among the first widely covered cases pointing to real-world exploitation rather than lab demonstration.</p>
+      </div>
+    </div>
+    <div class="incident">
+      <div class="year">2017</div>
+      <div>
+        <h3>German bank customers targeted</h3>
+        <p>Reports described attackers using SS7 access to intercept SMS-based one-time passcodes and drain bank accounts, one of the clearest publicly documented cases of SS7 weaknesses being used against a specific class of victim (online banking customers) rather than as a research demo.</p>
+      </div>
+    </div>
+    <div class="incident">
+      <div class="year">2020</div>
+      <div>
+        <h3>Continued commercial surveillance use reported</h3>
+        <p>Investigative reporting described commercial "SS7 access as a service" offerings marketed for location tracking, underscoring that the underlying access problem — who can reach the signaling network at all — remained only partially addressed industry-wide.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="defense">
+  <div class="eyebrow">05 · Mitigation</div>
+  <h2>How the industry has responded</h2>
+  <p class="lead">None of these fixes change SS7's fundamental design; they add filtering and monitoring around it, or move traffic to newer protocols with better native authentication.</p>
+
+  <div class="defense-grid">
+    <div class="defense">
+      <div class="icon-line">▲▼</div>
+      <h4>SS7 firewalls</h4>
+      <p>Gateway equipment that inspects incoming signaling messages against a subscriber's plausible state — e.g. rejecting a location query for a subscriber who isn't actually roaming — before it reaches core systems.</p>
+    </div>
+    <div class="defense">
+      <div class="icon-line">◉</div>
+      <h4>Signaling monitoring / IDS</h4>
+      <p>Real-time analytics that flag anomalous message volumes or patterns per subscriber, similar in spirit to fraud detection, to catch abuse that individual messages wouldn't reveal.</p>
+    </div>
+    <div class="defense">
+      <div class="icon-line">⇄</div>
+      <h4>GSMA guidance & interconnect vetting</h4>
+      <p>Industry body recommendations (GSMA FS.11, FS.19) push operators toward stricter vetting of who gets SS7 interconnect access in the first place, addressing the access problem rather than only the message problem.</p>
+    </div>
+    <div class="defense">
+      <div class="icon-line">→</div>
+      <h4>Migration to Diameter / 5G SBA</h4>
+      <p>4G's Diameter protocol and 5G's service-based architecture were designed with stronger message-level authentication in mind — though both have introduced their own, different classes of vulnerabilities, so migration reduces but doesn't eliminate this category of risk.</p>
+    </div>
+    <div class="defense">
+      <div class="icon-line">✉</div>
+      <h4>Moving away from SMS 2FA</h4>
+      <p>The most direct mitigation available to individuals and services: app-based authenticators or hardware security keys don't depend on SMS delivery at all, sidestepping SS7-based interception entirely.</p>
+    </div>
+    <div class="defense">
+      <div class="icon-line">§</div>
+      <h4>Regulatory pressure</h4>
+      <p>Telecom regulators in several countries have begun requiring operators to report SS7-related incidents and demonstrate firewall deployment, treating it as a compliance matter rather than a purely technical one.</p>
+    </div>
+  </div>
+</section>
+
+<section id="glossary">
+  <div class="eyebrow">06 · Reference</div>
+  <h2>Glossary</h2>
+  <dl class="glossary">
+    <div><dt>Global Title (GT)</dt><dd>An address used to route SCCP messages to a subscriber's home network — conceptually similar to a phone number acting as a network address.</dd></div>
+    <div><dt>HLR / HSS</dt><dd>Home Location Register / Home Subscriber Server — the database that knows a subscriber's current serving network and service profile.</dd></div>
+    <div><dt>MAP</dt><dd>Mobile Application Part — the SS7 application layer carrying mobile-specific operations like location updates and SMS delivery.</dd></div>
+    <div><dt>Roaming</dt><dd>The legitimate scenario SS7's cross-network trust exists to support: staying reachable when you're on a different operator's network than usual.</dd></div>
+    <div><dt>Interconnect</dt><dd>The contractual and technical relationship that lets two operators' networks exchange signaling traffic at all.</dd></div>
+    <div><dt>Diameter</dt><dd>The signaling protocol that succeeds SS7's MAP in 4G/LTE networks, with improved (though not perfect) authentication.</dd></div>
+  </dl>
+</section>
+
+</main>
+
+<footer>
+  <span>Study notes · conceptual overview only · no exploitation guidance</span>
+  <span>Sources: GSMA FS.11/FS.19 guidance, CCC talks, public incident reporting — verify specifics independently</span>
+</footer>
+
+</body>
+</html>
